@@ -1,0 +1,372 @@
+==========================================================================
+  STATISTICS FOR MACHINE LEARNING AND DATA SCIENCE  (2165117)
+  LAB EXPERIMENTS 1 TO 10  -  PYTHON CODE
+==========================================================================
+
+
+==========================================================================
+  EXPERIMENT 1: EXPLORATORY DATA ANALYSIS (EDA)
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+df = load_iris(as_frame=True).frame
+
+print(df.head())
+print(df.shape)
+print(df.info())
+
+print(df.describe().round(2))          # descriptive statistics
+print(df.skew().round(2))              # skewness
+
+df.hist(figsize=(10, 7), bins=15)
+plt.tight_layout()
+plt.show()
+
+corr = df.drop(columns="target").corr()
+sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm")
+plt.title("Correlation Matrix")
+plt.show()
+
+
+==========================================================================
+  EXPERIMENT 2: DATA PREPROCESSING
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+df = pd.DataFrame({"age":   [25, np.nan, 32, 45, 29, 120],
+                   "city":  ["Pune", "Delhi", None, "Pune", "Mumbai", "Delhi"],
+                   "score": [80, 65, np.nan, 90, 72, 68]})
+print("Missing values:\n", df.isnull().sum())
+
+# 1. handle missing values
+df["age"]   = df["age"].fillna(df["age"].median())
+df["score"] = df["score"].fillna(df["score"].median())
+df["city"]  = df["city"].fillna(df["city"].mode()[0])
+
+# 2. detect and cap outliers (IQR rule)
+q1, q3 = df["age"].quantile([.25, .75])
+iqr = q3 - q1
+outliers = df[(df["age"] < q1 - 1.5 * iqr) | (df["age"] > q3 + 1.5 * iqr)]
+print("Outliers detected:\n", outliers)
+df["age"] = df["age"].clip(q1 - 1.5 * iqr, q3 + 1.5 * iqr)
+
+# 3. encode the categorical column
+df["city"] = df["city"].astype("category").cat.codes
+
+# 4. scale the numerical columns
+df[["age", "score"]] = StandardScaler().fit_transform(df[["age", "score"]])
+print(df.round(2))
+
+
+==========================================================================
+  EXPERIMENT 3: SAMPLING METHODS
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+df = load_iris(as_frame=True).frame      # target = species (3 strata / clusters)
+
+# 1. simple random sampling - 20% of all rows
+srs = df.sample(frac=0.2, random_state=42)
+
+# 2. stratified sampling - 20% from each species
+strat = df.groupby("target").sample(frac=0.2, random_state=42)
+
+# 3. cluster sampling - pick 2 complete clusters
+clusters = [0, 1]
+clust = df[df["target"].isin(clusters)]
+
+print("Population:", len(df), "| SRS:", len(srs),
+      "| Stratified:", len(strat), "| Cluster:", len(clust))
+
+compare = pd.DataFrame({
+    "Population": df.mean(),
+    "SRS":        srs.mean(),
+    "Stratified": strat.mean(),
+    "Cluster":    clust.mean(),
+})
+print(compare.round(2))
+
+
+==========================================================================
+  EXPERIMENT 4: HYPOTHESIS TESTING
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from scipy import stats
+
+df = load_iris(as_frame=True).frame
+col = "petal length (cm)"
+
+# 1. independent-samples t-test : species 0 vs species 1
+a = df[df["target"] == 0][col]
+b = df[df["target"] == 1][col]
+t, p = stats.ttest_ind(a, b)
+print("t = %.3f, p = %.3g" % (t, p))
+
+# 2. chi-square test of independence : species vs sepal width > 3
+tab = pd.crosstab(df["target"], df["sepal width (cm)"] > 3)
+print(tab)
+chi2, p, dof, expected = stats.chi2_contingency(tab)
+print("chi2 = %.3f, dof = %d, p = %.3g" % (chi2, dof, p))
+
+# 3. one-way ANOVA : petal width across the three species
+groups = [g["petal width (cm)"] for _, g in df.groupby("target")]
+F, p = stats.f_oneway(*groups)
+print("F = %.3f, p = %.3g" % (F, p))
+
+
+==========================================================================
+  EXPERIMENT 5: LINEAR REGRESSION AND DIAGNOSTICS
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+X, y = load_diabetes(return_X_y=True, as_frame=True)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = LinearRegression().fit(Xtr, ytr)
+pred = model.predict(Xte)
+residual = yte - pred
+
+print("R2   = %.3f" % r2_score(yte, pred))
+print("MAE  = %.2f" % mean_absolute_error(yte, pred))
+print("RMSE = %.2f" % mean_squared_error(yte, pred) ** 0.5)
+print(pd.Series(model.coef_, X.columns).round(3))
+
+plt.scatter(pred, residual, alpha=0.6)
+plt.axhline(0, color="red")
+plt.xlabel("Fitted values"); plt.ylabel("Residuals")
+plt.title("Residual Plot"); plt.show()
+
+# Variance Inflation Factor
+for col in X.columns:
+    others = X.drop(columns=col)
+    r2 = LinearRegression().fit(others, X[col]).score(others, X[col])
+    print("%-12s VIF = %.2f" % (col, 1 / (1 - r2)))
+
+
+==========================================================================
+  EXPERIMENT 6: REGULARIZATION TECHNIQUES (RIDGE, LASSO, ELASTIC NET)
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.linear_model import Ridge, Lasso, ElasticNet
+from sklearn.model_selection import GridSearchCV
+
+X, y = load_diabetes(return_X_y=True, as_frame=True)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42)
+
+models = [
+    ("Ridge",      Ridge(),
+     {"ridge__alpha": [0.01, 0.1, 1, 10, 100]}),
+    ("Lasso",      Lasso(max_iter=10000),
+     {"lasso__alpha": [0.01, 0.1, 1, 10]}),
+    ("ElasticNet", ElasticNet(max_iter=10000),
+     {"elasticnet__alpha": [0.01, 0.1, 1],
+      "elasticnet__l1_ratio": [0.2, 0.5, 0.8]}),
+]
+
+for name, est, grid in models:
+    pipe = make_pipeline(StandardScaler(), est)
+    gs = GridSearchCV(pipe, grid, cv=5, scoring="neg_mean_squared_error")
+    gs.fit(Xtr, ytr)
+    rmse = (-gs.best_score_) ** 0.5
+    print("%-11s best=%-45s CV-RMSE=%.2f  Test-R2=%.3f"
+          % (name, gs.best_params_, rmse, gs.score(Xte, yte)))
+
+
+==========================================================================
+  EXPERIMENT 7: CLASSIFICATION MODELS AND ROC CURVE
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (classification_report, confusion_matrix,
+                             roc_curve, roc_auc_score,
+                             ConfusionMatrixDisplay)
+
+X, y = load_breast_cancer(return_X_y=True, as_frame=True)
+Xtr, Xte, ytr, yte = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y)
+
+model = make_pipeline(StandardScaler(),
+                      LogisticRegression(max_iter=1000)).fit(Xtr, ytr)
+prob = model.predict_proba(Xte)[:, 1]
+pred = model.predict(Xte)
+
+print("Accuracy = %.3f" % model.score(Xte, yte))
+print("AUC      = %.3f" % roc_auc_score(yte, prob))
+print(classification_report(yte, pred,
+      target_names=["malignant", "benign"]))
+
+ConfusionMatrixDisplay.from_predictions(yte, pred, cmap="Blues")
+plt.title("Confusion Matrix"); plt.show()
+
+fpr, tpr, thresholds = roc_curve(yte, prob)
+plt.plot(fpr, tpr, lw=2, label="AUC = %.3f" % roc_auc_score(yte, prob))
+plt.plot([0, 1], [0, 1], "k--", label="Random")
+plt.xlabel("False Positive Rate"); plt.ylabel("True Positive Rate")
+plt.title("ROC Curve"); plt.legend(); plt.show()
+
+
+==========================================================================
+  EXPERIMENT 8: DECISION TREES
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import classification_report
+
+X, y = load_breast_cancer(return_X_y=True, as_frame=True)
+Xtr, Xte, ytr, yte = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y)
+
+tree = DecisionTreeClassifier(max_depth=3, criterion="gini",
+                              random_state=42).fit(Xtr, ytr)
+
+print("Train accuracy = %.3f" % tree.score(Xtr, ytr))
+print("Test  accuracy = %.3f" % tree.score(Xte, yte))
+print(classification_report(yte, tree.predict(Xte),
+      target_names=["malignant", "benign"]))
+
+plt.figure(figsize=(16, 8))
+plot_tree(tree, feature_names=X.columns,
+          class_names=["malignant", "benign"],
+          filled=True, rounded=True, fontsize=8)
+plt.title("Decision Tree (max_depth = 3)")
+plt.show()
+
+importance = pd.Series(tree.feature_importances_, X.columns)
+print(importance.sort_values(ascending=False).head(6).round(3))
+importance.nlargest(8).plot(kind="barh")
+plt.title("Feature Importance"); plt.show()
+
+
+==========================================================================
+  EXPERIMENT 9: PRINCIPAL COMPONENT ANALYSIS (PCA)
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.decomposition import PCA
+
+X, y = load_iris(return_X_y=True, as_frame=True)
+Xs = StandardScaler().fit_transform(X)
+
+pca = PCA().fit(Xs)
+ev = pca.explained_variance_ratio_
+print(pd.DataFrame({
+    "Component": range(1, len(ev) + 1),
+    "Explained variance": ev.round(4),
+    "Cumulative": np.cumsum(ev).round(4)}))
+
+plt.plot(range(1, len(ev) + 1), np.cumsum(ev), "o-")
+plt.xlabel("Number of components"); plt.ylabel("Cumulative variance")
+plt.title("Scree Plot"); plt.show()
+
+X2 = PCA(n_components=2).fit_transform(Xs)
+sns.scatterplot(x=X2[:, 0], y=X2[:, 1], hue=y, palette="deep")
+plt.xlabel("PC1 (%.2f%%)" % (ev[0] * 100))
+plt.ylabel("PC2 (%.2f%%)" % (ev[1] * 100))
+plt.title("Iris data projected on the first two components")
+plt.show()
+
+
+==========================================================================
+  EXPERIMENT 10: K-MEANS CLUSTERING
+==========================================================================
+
+import numpy as np, pandas as pd, matplotlib.pyplot as plt, seaborn as sns
+from sklearn.datasets import load_iris, load_diabetes, load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+sns.set_style("whitegrid")
+
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+
+X, y = load_iris(return_X_y=True, as_frame=True)
+Xs = StandardScaler().fit_transform(X)
+
+# 1. elbow method
+wcss = []
+for k in range(1, 11):
+    km = KMeans(n_clusters=k, n_init=10, random_state=42).fit(Xs)
+    wcss.append(km.inertia_)
+
+plt.plot(range(1, 11), wcss, "o-")
+plt.xlabel("Number of clusters K"); plt.ylabel("WCSS (inertia)")
+plt.title("Elbow Method"); plt.show()
+
+# 2. final model with K = 3
+km = KMeans(n_clusters=3, n_init=10, random_state=42).fit(Xs)
+print("Inertia    = %.2f" % km.inertia_)
+print("Silhouette = %.3f" % silhouette_score(Xs, km.labels_))
+print(pd.Series(km.labels_).value_counts().sort_index())
+
+# 3. visualise the clusters in 2-D
+X2 = PCA(n_components=2).fit_transform(Xs)
+sns.scatterplot(x=X2[:, 0], y=X2[:, 1], hue=km.labels_, palette="deep")
+plt.title("K-Means Clusters (K = 3)"); plt.show()
+
+
+==========================================================================
+  END OF FILE
+==========================================================================
