@@ -58,3 +58,24 @@ def create_sdn_topology():
 if __name__ == "__main__":
     setLogLevel("info")
     create_sdn_topology()
+
+
+
+
+
+
+#Step 1: Install Open vSwitch & Test Controller
+apt-get update
+sudo apt-get install mininet openvswitch-switch openvswitch-testcontroller -y
+#Step 2: Start a Local Controller Service
+sudo systemctl start openvswitch-testcontroller
+sudo systemctl enable openvswitch-testcontroller
+sudo systemctl enable --now openvswitch-switch
+
+#Link the controller executable
+sudo ln -s /usr/bin/ovs-testcontroller /usr/bin/ovs-controller
+
+#RUN MININET EXP:
+sudo mn --topo=tree,depth=2,fanout=2 --controller=default --switch=ovs,protocols=OpenFlow13
+
+
